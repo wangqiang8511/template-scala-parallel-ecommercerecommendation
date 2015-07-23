@@ -62,7 +62,7 @@ class DataSource(val dsp: DataSourceParams)
     val eventsRDD: RDD[Event] = PEventStore.find(
       appName = dsp.appName,
       entityType = Some("user"),
-      eventNames = Some(List("view", "buy")),
+      eventNames = Some(List("view", "buy", "wish", "dislike")),
       // targetEntityType is optional field of an event.
       targetEntityType = Some(Some("item")))(sc)
       .cache()
@@ -101,11 +101,47 @@ class DataSource(val dsp: DataSourceParams)
         }
       }
 
+    val dislikeEventsRDD: RDD[DislikeEvent] = eventsRDD
+      .filter { event => event.event == "dislike" }
+      .map { event =>
+        try {
+          DislikeEvent(
+            user = event.entityId,
+            item = event.targetEntityId.get,
+            t = event.eventTime.getMillis
+          )
+        } catch {
+          case e: Exception =>
+            logger.error(s"Cannot convert ${event} to DislikeEvent." +
+              s" Exception: ${e}.")
+            throw e
+        }
+      }
+
+    val wishEventsRDD: RDD[WishEvent] = eventsRDD
+      .filter { event => event.event == "wish" }
+      .map { event =>
+        try {
+          WishEvent(
+            user = event.entityId,
+            item = event.targetEntityId.get,
+            t = event.eventTime.getMillis
+          )
+        } catch {
+          case e: Exception =>
+            logger.error(s"Cannot convert ${event} to WishEvent." +
+              s" Exception: ${e}.")
+            throw e
+        }
+      }
+
     new TrainingData(
       users = usersRDD,
       items = itemsRDD,
       viewEvents = viewEventsRDD,
-      buyEvents = buyEventsRDD
+      buyEvents = buyEventsRDD,
+      dislikeEvents = dislikeEventsRDD,
+      wishEvents = wishEventsRDD
     )
   }
 }
@@ -118,16 +154,24 @@ case class ViewEvent(user: String, item: String, t: Long)
 
 case class BuyEvent(user: String, item: String, t: Long)
 
+case class DislikeEvent(user: String, item: String, t: Long)
+
+case class WishEvent(user: String, item: String, t: Long)
+
 class TrainingData(
   val users: RDD[(String, User)],
   val items: RDD[(String, Item)],
   val viewEvents: RDD[ViewEvent],
-  val buyEvents: RDD[BuyEvent]
+  val buyEvents: RDD[BuyEvent],
+  val dislikeEvents: RDD[DislikeEvent],
+  val wishEvents: RDD[WishEvent]
 ) extends Serializable {
   override def toString = {
     s"users: [${users.count()} (${users.take(2).toList}...)]" +
     s"items: [${items.count()} (${items.take(2).toList}...)]" +
     s"viewEvents: [${viewEvents.count()}] (${viewEvents.take(2).toList}...)" +
-    s"buyEvents: [${buyEvents.count()}] (${buyEvents.take(2).toList}...)"
+    s"buyEvents: [${buyEvents.count()}] (${buyEvents.take(2).toList}...)" +
+    s"dislikeEvents: [${dislikeEvents.count()}] (${dislikeEvents.take(2).toList}...)" +
+    s"wishEvents: [${wishEvents.count()}] (${wishEvents.take(2).toList}...)"
   }
 }

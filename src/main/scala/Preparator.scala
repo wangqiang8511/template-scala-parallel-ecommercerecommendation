@@ -14,7 +14,9 @@ class Preparator
       users = trainingData.users,
       items = trainingData.items,
       viewEvents = trainingData.viewEvents,
-      buyEvents = trainingData.buyEvents)
+      buyEvents = trainingData.buyEvents),
+      dislikeEvents = trainingData.dislikeEvents),
+      wishEvents = trainingData.wishEvents)
   }
 }
 
@@ -22,5 +24,7 @@ class PreparedData(
   val users: RDD[(String, User)],
   val items: RDD[(String, Item)],
   val viewEvents: RDD[ViewEvent],
-  val buyEvents: RDD[BuyEvent]
+  val buyEvents: RDD[BuyEvent],
+  val dislikeEvents: RDD[DislikeEvent],
+  val wishEvents: RDD[WishEvent],
 ) extends Serializable

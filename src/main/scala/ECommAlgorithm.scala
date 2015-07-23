@@ -150,7 +150,7 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
     itemStringIntMap: BiMap[String, Int],
     data: PreparedData): RDD[MLlibRating] = {
 
-    val mllibRatings = data.viewEvents
+    val viewRates = data.viewEvents
       .map { r =>
         // Convert user and item String IDs to Int index for MLlib
         val uindex = userStringIntMap.getOrElse(r.user, -1)
@@ -171,6 +171,58 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
         (u != -1) && (i != -1)
       }
       .reduceByKey(_ + _) // aggregate all view events of same user-item pair
+      .cache()
+      
+    val buyRates = data.buyEvents
+      .map { r =>
+        // Convert user and item String IDs to Int index for MLlib
+        val uindex = userStringIntMap.getOrElse(r.user, -1)
+        val iindex = itemStringIntMap.getOrElse(r.item, -1)
+
+        if (uindex == -1)
+          logger.info(s"Couldn't convert nonexistent user ID ${r.user}"
+            + " to Int index.")
+
+        if (iindex == -1)
+          logger.info(s"Couldn't convert nonexistent item ID ${r.item}"
+            + " to Int index.")
+
+        ((uindex, iindex), 2)
+      }
+      .filter { case ((u, i), v) =>
+        // keep events with valid user and item index
+        (u != -1) && (i != -1)
+      }
+      .reduceByKey(_ + _) // aggregate all view events of same user-item pair
+      .cache()
+      
+    val wishRates = data.wishEvents
+      .map { r =>
+        // Convert user and item String IDs to Int index for MLlib
+        val uindex = userStringIntMap.getOrElse(r.user, -1)
+        val iindex = itemStringIntMap.getOrElse(r.item, -1)
+
+        if (uindex == -1)
+          logger.info(s"Couldn't convert nonexistent user ID ${r.user}"
+            + " to Int index.")
+
+        if (iindex == -1)
+          logger.info(s"Couldn't convert nonexistent item ID ${r.item}"
+            + " to Int index.")
+
+        ((uindex, iindex), 5)
+      }
+      .filter { case ((u, i), v) =>
+        // keep events with valid user and item index
+        (u != -1) && (i != -1)
+      }
+      .reduceByKey(_ + _) // aggregate all view events of same user-item pair
+      .cache()
+
+    val mllibRatings = viewRates.cogroup(buyRates, wishRates)
+      .map{ case ((u, i), a, b, c) =>
+        ((u, i), a.sum + b.sum + c.sum)
+      }
       .map { case ((u, i), v) =>
         // MLlibRating requires integer index for user and item
         MLlibRating(u, i, v)
