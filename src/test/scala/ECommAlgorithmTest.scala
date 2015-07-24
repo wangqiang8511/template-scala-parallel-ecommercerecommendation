@@ -53,6 +53,17 @@ class ECommAlgorithmTest
     BuyEvent("u1", "i1", 1000040)
   )
 
+  val dislike = Seq(
+    DislikeEvent("u0", "i0", 1000020),
+    DislikeEvent("u0", "i1", 1000030),
+    DislikeEvent("u1", "i1", 1000040)
+  )
+
+  val wish = Seq(
+    WishEvent("u0", "i0", 1000020),
+    WishEvent("u0", "i1", 1000030),
+    WishEvent("u1", "i1", 1000040)
+  )
 
   "ECommAlgorithm.genMLlibRating()" should "create RDD[MLlibRating] correctly" in {
 
@@ -60,7 +71,9 @@ class ECommAlgorithmTest
       users = sc.parallelize(users.toSeq),
       items = sc.parallelize(items.toSeq),
       viewEvents = sc.parallelize(view.toSeq),
-      buyEvents = sc.parallelize(buy.toSeq)
+      buyEvents = sc.parallelize(buy.toSeq),
+      dislikeEvents = sc.parallelize(dislike.toSeq),
+      wishEvents = sc.parallelize(wish.toSeq)
     )
 
     val mllibRatings = algorithm.genMLlibRating(
@@ -70,9 +83,9 @@ class ECommAlgorithmTest
     )
 
     val expected = Seq(
-      MLlibRating(0, 0, 1),
-      MLlibRating(0, 1, 2),
-      MLlibRating(1, 1, 1),
+      MLlibRating(0, 0, 8),
+      MLlibRating(0, 1, 9),
+      MLlibRating(1, 1, 8),
       MLlibRating(1, 2, 1)
     )
 
@@ -84,7 +97,9 @@ class ECommAlgorithmTest
       users = sc.parallelize(users.toSeq),
       items = sc.parallelize(items.toSeq),
       viewEvents = sc.parallelize(view.toSeq),
-      buyEvents = sc.parallelize(buy.toSeq)
+      buyEvents = sc.parallelize(buy.toSeq),
+      dislikeEvents = sc.parallelize(dislike.toSeq),
+      wishEvents = sc.parallelize(wish.toSeq)
     )
 
     val popCount = algorithm.trainDefault(
@@ -93,7 +108,7 @@ class ECommAlgorithmTest
       data = preparedData
     )
 
-    val expected = Map(0 -> 1, 1 -> 2)
+    val expected = Map(0 -> 3, 1 -> 6)
 
     popCount should contain theSameElementsAs expected
   }

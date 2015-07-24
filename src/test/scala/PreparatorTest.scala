@@ -29,6 +29,18 @@ class PreparatorTest
     BuyEvent("u1", "i1", 1000040)
   )
 
+  val dislike = Seq(
+    DislikeEvent("u0", "i0", 1000020),
+    DislikeEvent("u0", "i1", 1000030),
+    DislikeEvent("u1", "i1", 1000040)
+  )
+
+ val wish = Seq(
+    WishEvent("u0", "i0", 1000020),
+    WishEvent("u0", "i1", 1000030),
+    WishEvent("u1", "i1", 1000040)
+  )
+
   // simple test for demonstration purpose
   "Preparator" should "prepare PreparedData" in {
 
@@ -36,7 +48,9 @@ class PreparatorTest
       users = sc.parallelize(users.toSeq),
       items = sc.parallelize(items.toSeq),
       viewEvents = sc.parallelize(view.toSeq),
-      buyEvents = sc.parallelize(buy.toSeq)
+      buyEvents = sc.parallelize(buy.toSeq),
+      dislikeEvents = sc.parallelize(dislike.toSeq),
+      wishEvents = sc.parallelize(wish.toSeq)
     )
 
     val preparedData = preparator.prepare(sc, trainingData)
@@ -45,5 +59,7 @@ class PreparatorTest
     preparedData.items.collect should contain theSameElementsAs items
     preparedData.viewEvents.collect should contain theSameElementsAs view
     preparedData.buyEvents.collect should contain theSameElementsAs buy
+    preparedData.dislikeEvents.collect should contain theSameElementsAs dislike
+    preparedData.wishEvents.collect should contain theSameElementsAs wish
   }
 }
