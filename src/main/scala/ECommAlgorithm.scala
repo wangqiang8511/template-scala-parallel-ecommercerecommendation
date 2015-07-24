@@ -220,7 +220,7 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
       .cache()
 
     val mllibRatings = viewRates.cogroup(buyRates, wishRates)
-      .map{ case ((u, i), a, b, c) =>
+      .map{ case ((u, i), (a, b, c)) =>
         ((u, i), a.sum + b.sum + c.sum)
       }
       .map { case ((u, i), v) =>
@@ -240,7 +240,7 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
     userStringIntMap: BiMap[String, Int],
     itemStringIntMap: BiMap[String, Int],
     data: PreparedData): Map[Int, Int] = {
-    // count number of buys
+    // count number of buys and wish
     // (item index, count)
     val buyCountsRDD: RDD[(Int, Int)] = data.buyEvents
       .map { r =>
@@ -265,7 +265,35 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
       .map { case (u, i, v) => (i, 1) } // key is item
       .reduceByKey{ case (a, b) => a + b } // count number of items occurrence
 
-    buyCountsRDD.collectAsMap.toMap
+    val wishCountsRDD: RDD[(Int, Int)] = data.wishEvents
+      .map { r =>
+        // Convert user and item String IDs to Int index
+        val uindex = userStringIntMap.getOrElse(r.user, -1)
+        val iindex = itemStringIntMap.getOrElse(r.item, -1)
+
+        if (uindex == -1)
+          logger.info(s"Couldn't convert nonexistent user ID ${r.user}"
+            + " to Int index.")
+
+        if (iindex == -1)
+          logger.info(s"Couldn't convert nonexistent item ID ${r.item}"
+            + " to Int index.")
+
+        (uindex, iindex, 1)
+      }
+      .filter { case (u, i, v) =>
+        // keep events with valid user and item index
+        (u != -1) && (i != -1)
+      }
+      .map { case (u, i, v) => (i, 2) } // key is item
+      .reduceByKey{ case (a, b) => a + b } // count number of items occurrence
+
+    val jointCountsRDD: RDD[(Int, Int)] = buyCountsRDD.cogroup(wishCountsRDD)
+      .map { case (i, (a, b)) => 
+        (i, a.sum + b.sum)
+      }
+
+    jointCountsRDD.collectAsMap.toMap
   }
 
   def predict(model: ECommModel, query: Query): PredictedResult = {
